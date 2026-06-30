@@ -65,10 +65,7 @@ function defaultFiles(): ProjectFile[] {
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main>
-    <h1>Hello, World!</h1>
-    <p>Start building your site here.</p>
-  </main>
+
   <script src="script.js"></script>
 </body>
 </html>`,
@@ -79,29 +76,7 @@ function defaultFiles(): ProjectFile[] {
       id: crypto.randomUUID(),
       name: 'style.css',
       type: 'css',
-      content: `* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family: system-ui, sans-serif;
-  line-height: 1.6;
-  padding: 2rem;
-  background: #fafafa;
-  color: #171717;
-}
-
-main {
-  max-width: 640px;
-  margin: 0 auto;
-}
-
-h1 {
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-}`,
+      content: '',
       createdAt: now,
       updatedAt: now,
     },
@@ -109,7 +84,7 @@ h1 {
       id: crypto.randomUUID(),
       name: 'script.js',
       type: 'js',
-      content: `console.log('Welcome to Spark!');`,
+      content: '',
       createdAt: now,
       updatedAt: now,
     },
