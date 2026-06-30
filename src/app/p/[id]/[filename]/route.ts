@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getProjectById } from '@/lib/storage';
+import { buildPublishedDocument } from '@/lib/preview';
 
 function contentType(type: string): string {
   switch (type) {
@@ -27,7 +28,11 @@ export async function GET(
     return new NextResponse('Not found', { status: 404, headers: { 'Content-Type': 'text/plain' } });
   }
 
-  return new NextResponse(file.content, {
+  const body = file.type === 'html'
+    ? buildPublishedDocument(project, file.content)
+    : file.content;
+
+  return new NextResponse(body, {
     status: 200,
     headers: { 'Content-Type': contentType(file.type) },
   });

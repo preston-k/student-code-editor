@@ -64,6 +64,19 @@ export function buildPreviewDocument(project: Project): string {
   return inlineAssets(entry.content, project.files);
 }
 
+export function buildPublishedDocument(project: Project, htmlContent?: string): string {
+  const html = htmlContent
+    ? inlineAssets(htmlContent, project.files)
+    : buildPreviewDocument(project);
+
+  // Intercept relative/root-relative link clicks and rewrite them to /p/[id]/filename
+  const navScript = `<script>(function(){var b='/p/${project.id}/';document.addEventListener('click',function(e){var a=e.target.closest('a[href]');if(!a)return;var h=a.getAttribute('href');if(!h||/^(https?:|\/\/|#|mailto:|tel:)/.test(h))return;e.preventDefault();location.href=h.startsWith('/')?b+h.slice(1):b+h;});})();</script>`;
+
+  return html.includes('</head>')
+    ? html.replace('</head>', navScript + '</head>')
+    : html + navScript;
+}
+
 export function getFileIcon(type: ProjectFile['type']): string {
   switch (type) {
     case 'html':
