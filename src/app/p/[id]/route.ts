@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getProjectById } from '@/lib/storage';
+import { buildPreviewDocument } from '@/lib/preview';
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -9,17 +10,7 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     return new NextResponse('Not found', { status: 404, headers: { 'Content-Type': 'text/plain' } });
   }
 
-  const htmlFile = project.files.find((f) => f.type === 'html') ?? null;
-  if (!htmlFile) {
-    return new NextResponse('No HTML file in this project', { status: 404, headers: { 'Content-Type': 'text/plain' } });
-  }
-
-  const html = htmlFile.content.replace(
-    /(<head[^>]*>)/i,
-    `$1<base href="/p/${id}/">`,
-  );
-
-  return new NextResponse(html, {
+  return new NextResponse(buildPreviewDocument(project), {
     status: 200,
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   });
