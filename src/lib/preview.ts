@@ -70,7 +70,7 @@ export function buildPublishedDocument(project: Project, htmlContent?: string): 
     : buildPreviewDocument(project);
 
   // Intercept relative/root-relative link clicks and rewrite them to /p/[id]/filename
-  const navScript = `<script>(function(){var b='/p/${project.id}/';document.addEventListener('click',function(e){var a=e.target.closest('a[href]');if(!a)return;var h=a.getAttribute('href');if(!h||/^(https?:|\/\/|#|mailto:|tel:)/.test(h))return;e.preventDefault();location.href=h.startsWith('/')?b+h.slice(1):b+h;});})();</script>`;
+  const navScript = `<script>(function(){var b='/p/${project.id}/';document.addEventListener('click',function(e){var a=e.target.closest('a[href]');if(!a)return;var h=a.getAttribute('href');if(!h||h[0]==='#'||h.startsWith('http')||h.startsWith('//')|| h.startsWith('mailto:')||h.startsWith('tel:'))return;e.preventDefault();location.href=h[0]==='/'?b+h.slice(1):b+h;});})();</script>`;
 
   return html.includes('</head>')
     ? html.replace('</head>', navScript + '</head>')
