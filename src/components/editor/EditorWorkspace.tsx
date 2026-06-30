@@ -29,6 +29,9 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
   const [showNewFile, setShowNewFile] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   const [showPreview, setShowPreview] = useState(true);
+  const [splitPercent, setSplitPercent] = useState(50);
+  const splitContainerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
 
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const projectRef = useRef(project);
@@ -164,6 +167,26 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   });
 
+  useEffect(() => {
+    function onMouseMove(e: MouseEvent) {
+      if (!isDragging.current || !splitContainerRef.current) return;
+      const rect = splitContainerRef.current.getBoundingClientRect();
+      const pct = ((e.clientX - rect.left) / rect.width) * 100;
+      setSplitPercent(Math.max(20, Math.min(80, pct)));
+    }
+    function onMouseUp() {
+      isDragging.current = false;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, []);
+
   return (
     <div className="flex h-screen flex-col bg-white">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -216,20 +239,51 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
           onDelete={handleDeleteFile}
         />
 
-        <div className={`grid min-h-0 ${showPreview ? 'lg:grid-cols-2' : 'grid-cols-1'}`}>
-          {activeFile ? (
-            <CodeEditor
-              fileName={activeFile.name}
-              value={activeContent}
-              onChange={(value) => markDirty(activeFile.id, value)}
-            />
-          ) : (
-            <div className="flex h-full items-center justify-center text-muted">
-              Select or create a file to start coding
-            </div>
-          )}
+        <div ref={splitContainerRef} className="flex min-h-0">
+          {/* editor panel */}
+          <div
+            className="min-h-0 min-w-0 overflow-hidden"
+            style={{ width: showPreview ? `${splitPercent}%` : '100%' }}
+          >
+            {activeFile ? (
+              <CodeEditor
+                fileName={activeFile.name}
+                value={activeContent}
+                onChange={(value) => markDirty(activeFile.id, value)}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-muted">
+                Select or create a file to start coding
+              </div>
+            )}
+          </div>
 
-          {showPreview ? <PreviewPane html={previewHtml} /> : null}
+          {showPreview ? (
+            <>
+              {/* drag handle */}
+              <div
+                className="group relative z-10 flex w-1 flex-shrink-0 cursor-col-resize items-center justify-center bg-border hover:bg-accent/40 active:bg-accent/60 transition-colors"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  isDragging.current = true;
+                  document.body.style.cursor = 'col-resize';
+                  document.body.style.userSelect = 'none';
+                }}
+              >
+                <div className="absolute flex h-8 w-4 items-center justify-center rounded-sm">
+                  <div className="flex gap-0.5">
+                    <span className="h-3 w-px bg-muted/60 group-hover:bg-accent/80 transition-colors" />
+                    <span className="h-3 w-px bg-muted/60 group-hover:bg-accent/80 transition-colors" />
+                  </div>
+                </div>
+              </div>
+
+              {/* preview panel */}
+              <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                <PreviewPane html={previewHtml} />
+              </div>
+            </>
+          ) : null}
         </div>
       </div>
 
