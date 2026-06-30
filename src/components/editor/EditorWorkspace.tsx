@@ -34,6 +34,7 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
   const isDragging = useRef(false);
 
   const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const projectRef = useRef(project);
   const draftsRef = useRef(drafts);
 
@@ -76,8 +77,22 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
   }, []);
 
   const markDirty = useCallback((fileId: string, content: string) => {
-    setDrafts((current) => ({ ...current, [fileId]: content }));
+    const newDrafts = { ...draftsRef.current, [fileId]: content };
+    draftsRef.current = newDrafts;
+    setDrafts(newDrafts);
     setSaveStatus('unsaved');
+
+    // Live preview (300ms debounce — fast feedback, doesn't hammer the iframe)
+    if (previewTimer.current) clearTimeout(previewTimer.current);
+    previewTimer.current = setTimeout(() => {
+      setPreviewHtml(buildPreviewDocument({
+        ...projectRef.current,
+        files: projectRef.current.files.map((f) => ({
+          ...f,
+          content: newDrafts[f.id] ?? f.content,
+        })),
+      }));
+    }, 300);
 
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     autosaveTimer.current = setTimeout(() => saveFile(fileId), AUTOSAVE_DELAY);
@@ -152,6 +167,7 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
   useEffect(() => {
     return () => {
       if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+      if (previewTimer.current) clearTimeout(previewTimer.current);
     };
   }, []);
 
