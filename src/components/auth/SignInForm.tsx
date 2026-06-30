@@ -15,8 +15,8 @@ export function SignInForm() {
     <div className="flex min-h-full flex-1 flex-col items-center justify-center px-6 py-16">
       <div className="mb-8 flex flex-col items-center text-center">
         <Logo size="lg" />
-        <h1 className="mt-6 text-3xl font-semibold tracking-tight">Spark</h1>
-        <p className="mt-2 text-muted">Sign in to continue</p>
+        <h1 className="mt-6 text-3xl font-semibold tracking-tight text-accent">Spark</h1>
+        <p className="mt-2 text-muted">Sign in</p>
       </div>
 
       <Card className="w-full max-w-sm">
@@ -44,7 +44,7 @@ export function SignInForm() {
         </form>
         <p className="mt-4 text-center text-sm text-muted">
           No account?{' '}
-          <Link href="/auth/sign-up" className="font-medium text-foreground hover:underline">
+          <Link href="/auth/sign-up" className="cursor-pointer font-medium text-accent hover:underline">
             Sign up
           </Link>
         </p>

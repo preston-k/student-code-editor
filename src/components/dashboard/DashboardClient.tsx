@@ -58,8 +58,8 @@ export function DashboardClient() {
           <div className="flex items-center gap-3">
             <Logo size="sm" />
             <div>
-              <p className="font-medium">Spark</p>
-              {displayName ? <p className="text-sm text-muted">Welcome, {displayName}</p> : null}
+              <p className="font-semibold text-accent">Spark</p>
+              {displayName ? <p className="text-sm text-muted">{displayName}</p> : null}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -77,7 +77,7 @@ export function DashboardClient() {
       <main className="mx-auto max-w-6xl px-6 py-10">
         <div className="mb-8">
           <h1 className="text-2xl font-semibold tracking-tight">Your projects</h1>
-          <p className="mt-1 text-muted">Build, preview, and publish HTML sites.</p>
+          <p className="mt-1 text-muted">Your HTML projects</p>
         </div>
 
         {projects.length === 0 ? (

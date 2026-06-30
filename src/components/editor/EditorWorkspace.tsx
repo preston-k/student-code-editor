@@ -209,7 +209,7 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
     <div className="flex h-screen flex-col bg-white">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard" className="flex items-center gap-2 text-sm text-muted hover:text-foreground">
+          <Link href="/dashboard" className="flex cursor-pointer items-center gap-2 text-sm text-muted hover:text-foreground">
             <Logo size="sm" />
             <span className="font-medium text-foreground">{project.name}</span>
           </Link>
@@ -245,7 +245,7 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
             <Link
               href={`/p/${project.id}`}
               target="_blank"
-              className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent/90"
+              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent/90"
             >
               <i className="bi bi-box-arrow-up-right" aria-hidden="true" />
               View live

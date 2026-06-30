@@ -15,8 +15,8 @@ export function SignUpForm() {
     <div className="flex min-h-full flex-1 flex-col items-center justify-center px-6 py-16">
       <div className="mb-8 flex flex-col items-center text-center">
         <Logo size="lg" />
-        <h1 className="mt-6 text-3xl font-semibold tracking-tight">Create account</h1>
-        <p className="mt-2 text-muted">Join Spark and start building</p>
+        <h1 className="mt-6 text-3xl font-semibold tracking-tight text-accent">Spark</h1>
+        <p className="mt-2 text-muted">Create account</p>
       </div>
 
       <Card className="w-full max-w-sm">
@@ -50,7 +50,7 @@ export function SignUpForm() {
         </form>
         <p className="mt-4 text-center text-sm text-muted">
           Already have an account?{' '}
-          <Link href="/auth/sign-in" className="font-medium text-foreground hover:underline">
+          <Link href="/auth/sign-in" className="cursor-pointer font-medium text-accent hover:underline">
             Sign in
           </Link>
         </p>

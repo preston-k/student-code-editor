@@ -40,7 +40,7 @@ export function FileTree({ files, activeFileId, onSelect, onCreate, onDelete }: 
         <button
           type="button"
           onClick={onCreate}
-          className="rounded p-0.5 text-muted opacity-0 transition-opacity group-hover/header:opacity-100 hover:bg-black/10 hover:text-foreground"
+          className="cursor-pointer rounded p-0.5 text-muted opacity-0 transition-opacity group-hover/header:opacity-100 hover:bg-black/10 hover:text-accent"
           title="New file"
         >
           <i className="bi bi-plus text-base leading-none" aria-hidden="true" />
@@ -51,16 +51,12 @@ export function FileTree({ files, activeFileId, onSelect, onCreate, onDelete }: 
         {files.map((file) => (
           <div
             key={file.id}
-            className="group/row flex items-center"
-            style={{
-              background: activeFileId === file.id ? '#e0e0e0' : undefined,
-            }}
+            className={`group/row flex items-center ${activeFileId === file.id ? 'bg-accent-light' : ''}`}
           >
             <button
               type="button"
               onClick={() => onSelect(file.id)}
-              className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 py-[5px] pl-4 pr-2 text-left hover:bg-black/5"
-              style={{ background: activeFileId === file.id ? 'transparent' : undefined }}
+              className={`flex min-w-0 flex-1 cursor-pointer items-center gap-2 py-[5px] pl-4 pr-2 text-left hover:bg-black/5 ${activeFileId === file.id ? 'font-medium' : ''}`}
             >
               <i
                 className={`bi ${fileIconClass(file.type)} shrink-0 text-[13px]`}
@@ -68,8 +64,7 @@ export function FileTree({ files, activeFileId, onSelect, onCreate, onDelete }: 
                 aria-hidden="true"
               />
               <span
-                className="truncate font-mono text-[13px] leading-tight"
-                style={{ color: activeFileId === file.id ? '#111' : '#3a3a3a' }}
+                className={`truncate font-mono text-[13px] leading-tight ${activeFileId === file.id ? 'text-foreground' : 'text-foreground/70'}`}
               >
                 {file.name}
               </span>

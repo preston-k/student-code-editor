@@ -29,7 +29,7 @@ export function CreateProjectModal({ onClose, onCreated }: CreateProjectModalPro
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-muted hover:bg-surface hover:text-foreground"
+            className="cursor-pointer rounded-lg p-1 text-muted hover:bg-surface hover:text-foreground"
           >
             <i className="bi bi-x-lg" aria-hidden="true" />
           </button>

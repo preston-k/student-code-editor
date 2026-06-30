@@ -6,7 +6,8 @@
   --muted: #6b7280;
   --border: #e5e7eb;
   --surface: #f9fafb;
-  --accent: #0f172a;
+  --accent: #f97316;
+  --accent-light: #fff7ed;
 }
 
 @theme inline {
@@ -16,6 +17,7 @@
   --color-border: var(--border);
   --color-surface: var(--surface);
   --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
   --font-sans: 'Inter', system-ui, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
