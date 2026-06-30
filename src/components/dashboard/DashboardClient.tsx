@@ -3,13 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Project } from '@/lib/types';
-import {
-  getStudentName,
-  signOut,
-  listProjectsByOwner,
-  createProject,
-  deleteProject,
-} from '@/lib/client-storage';
+import { getStudentName, signOut } from '@/lib/client-storage';
 import { ProjectCard } from '@/components/dashboard/ProjectCard';
 import { CreateProjectModal } from '@/components/dashboard/CreateProjectModal';
 import { Button } from '@/components/ui/Button';
@@ -21,6 +15,13 @@ export function DashboardClient() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [showCreate, setShowCreate] = useState(false);
 
+  async function fetchProjects() {
+    const res = await fetch('/api/projects');
+    if (res.ok) {
+      setProjects(await res.json());
+    }
+  }
+
   useEffect(() => {
     const name = getStudentName();
     if (!name) {
@@ -28,23 +29,30 @@ export function DashboardClient() {
       return;
     }
     setStudentName(name);
-    setProjects(listProjectsByOwner(name));
+    fetchProjects();
   }, [router]);
 
-  function handleCreate(name: string, description?: string) {
-    if (!studentName) return;
-    createProject(studentName, { name, description });
-    setProjects(listProjectsByOwner(studentName));
+  async function handleCreate(name: string, description?: string) {
+    const res = await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description }),
+    });
+    if (res.ok) {
+      await fetchProjects();
+    }
   }
 
-  function handleDelete(id: string) {
-    if (!studentName) return;
+  async function handleDelete(id: string) {
     if (!confirm('Delete this project?')) return;
-    deleteProject(id, studentName);
-    setProjects(listProjectsByOwner(studentName));
+    const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setProjects((current) => current.filter((p) => p.id !== id));
+    }
   }
 
-  function handleSignOut() {
+  async function handleSignOut() {
+    await fetch('/api/auth', { method: 'DELETE' });
     signOut();
     router.push('/');
   }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { getProjectBySlug } from '@/lib/client-storage';
+import type { Project } from '@/lib/types';
 import { buildPreviewDocument } from '@/lib/preview';
 
 export default function PublishedPage() {
@@ -13,14 +13,13 @@ export default function PublishedPage() {
 
   useEffect(() => {
     const slug = params.slug as string;
-    const project = getProjectBySlug(slug);
-
-    if (!project) {
-      setNotFound(true);
-      return;
-    }
-
-    setHtml(buildPreviewDocument(project));
+    fetch(`/api/p/${slug}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Not found');
+        return res.json();
+      })
+      .then((project: Project) => setHtml(buildPreviewDocument(project)))
+      .catch(() => setNotFound(true));
   }, [params.slug]);
 
   if (notFound) {

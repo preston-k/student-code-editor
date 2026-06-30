@@ -14,7 +14,7 @@ export function SignInForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  function handleSubmit(event: React.FormEvent) {
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) {
@@ -22,8 +22,20 @@ export function SignInForm() {
       return;
     }
     setLoading(true);
-    signIn(trimmed);
-    router.push('/dashboard');
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: trimmed }),
+      });
+      if (!res.ok) throw new Error('Sign in failed');
+      const data = await res.json();
+      signIn(data.name);
+      router.push('/dashboard');
+    } catch {
+      setError('Something went wrong. Please try again.');
+      setLoading(false);
+    }
   }
 
   return (

@@ -9,15 +9,16 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@codemirror/lang-css": "^6.3.1",
+    "@codemirror/lang-html": "^6.4.9",
+    "@codemirror/lang-javascript": "^6.2.3",
+    "@neondatabase/serverless": "^1.1.0",
+    "@uiw/react-codemirror": "^4.23.7",
     "bootstrap-icons": "^1.13.1",
     "next": "16.2.9",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "uuid": "^14.0.1",
-    "@uiw/react-codemirror": "^4.23.7",
-    "@codemirror/lang-html": "^6.4.9",
-    "@codemirror/lang-css": "^6.3.1",
-    "@codemirror/lang-javascript": "^6.2.3"
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

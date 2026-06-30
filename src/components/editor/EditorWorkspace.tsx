@@ -3,13 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { Project } from '@/lib/types';
-import {
-  getStudentName,
-  updateFile,
-  addFile,
-  deleteFile,
-  updateProject,
-} from '@/lib/client-storage';
 import { buildPreviewDocument } from '@/lib/preview';
 import { FileTree } from '@/components/editor/FileTree';
 import { CodeEditor } from '@/components/editor/CodeEditor';
@@ -44,8 +37,6 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
   useEffect(() => { projectRef.current = project; }, [project]);
   useEffect(() => { draftsRef.current = drafts; }, [drafts]);
 
-  const owner = getStudentName() ?? '';
-
   const activeFile = useMemo(
     () => project.files.find((file) => file.id === activeFileId) ?? null,
     [project.files, activeFileId],
@@ -53,17 +44,20 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
 
   const activeContent = activeFile ? drafts[activeFile.id] ?? activeFile.content : '';
 
-  const saveFile = useCallback((fileId: string) => {
+  const saveFile = useCallback(async (fileId: string) => {
     const currentProject = projectRef.current;
     const file = currentProject.files.find((f) => f.id === fileId);
     if (!file) return;
 
     setSaveStatus('saving');
-    const updated = updateFile(currentProject.id, owner, fileId, {
-      content: draftsRef.current[fileId] ?? file.content,
+    const res = await fetch(`/api/projects/${currentProject.id}/files/${fileId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: draftsRef.current[fileId] ?? file.content }),
     });
 
-    if (updated) {
+    if (res.ok) {
+      const updated: Project = await res.json();
       setProject(updated);
       setSaveStatus('saved');
       setPreviewHtml(buildPreviewDocument({
@@ -73,8 +67,10 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
           content: draftsRef.current[f.id] ?? f.content,
         })),
       }));
+    } else {
+      setSaveStatus('unsaved');
     }
-  }, [owner]);
+  }, []);
 
   const markDirty = useCallback((fileId: string, content: string) => {
     setDrafts((current) => ({ ...current, [fileId]: content }));
@@ -93,29 +89,38 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
     saveFile(activeFile.id);
   }
 
-  function handleCreateFile(name: string) {
-    try {
-      const updated = addFile(project.id, owner, { name });
-      if (!updated) return;
+  async function handleCreateFile(name: string) {
+    const res = await fetch(`/api/projects/${project.id}/files`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    });
 
-      const created = updated.files.find(
-        (file) => !project.files.some((existing) => existing.id === file.id),
-      );
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (data.error) alert(data.error);
+      return;
+    }
 
-      setProject(updated);
-      if (created) {
-        setDrafts((current) => ({ ...current, [created.id]: created.content }));
-        setActiveFileId(created.id);
-      }
-    } catch (error) {
-      if (error instanceof Error) alert(error.message);
+    const updated: Project = await res.json();
+    const created = updated.files.find(
+      (file) => !project.files.some((existing) => existing.id === file.id),
+    );
+
+    setProject(updated);
+    if (created) {
+      setDrafts((current) => ({ ...current, [created.id]: created.content }));
+      setActiveFileId(created.id);
     }
   }
 
-  function handleDeleteFile(fileId: string) {
-    const updated = deleteFile(project.id, owner, fileId);
-    if (!updated) return;
+  async function handleDeleteFile(fileId: string) {
+    const res = await fetch(`/api/projects/${project.id}/files/${fileId}`, {
+      method: 'DELETE',
+    });
+    if (!res.ok) return;
 
+    const updated: Project = await res.json();
     setProject(updated);
 
     if (activeFileId === fileId) {
@@ -130,9 +135,15 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
     setPreviewHtml(buildPreviewDocument(updated));
   }
 
-  function togglePublish() {
-    const updated = updateProject(project.id, owner, { published: !project.published });
-    if (updated) setProject(updated);
+  async function togglePublish() {
+    const res = await fetch(`/api/projects/${project.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ published: !project.published }),
+    });
+    if (res.ok) {
+      setProject(await res.json());
+    }
   }
 
   useEffect(() => {

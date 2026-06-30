@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { getStudentName, getProjectById } from '@/lib/client-storage';
+import { getStudentName } from '@/lib/client-storage';
 import { EditorWorkspace } from '@/components/editor/EditorWorkspace';
 import type { Project } from '@/lib/types';
 
@@ -19,14 +19,19 @@ export default function EditorPage() {
     }
 
     const id = params.id as string;
-    const found = getProjectById(id);
-
-    if (!found || found.owner !== studentName) {
-      router.replace('/dashboard');
-      return;
-    }
-
-    setProject(found);
+    fetch(`/api/projects/${id}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Not found');
+        return res.json();
+      })
+      .then((data: Project) => {
+        if (data.owner !== studentName) {
+          router.replace('/dashboard');
+          return;
+        }
+        setProject(data);
+      })
+      .catch(() => router.replace('/dashboard'));
   }, [params.id, router]);
 
   if (!project) return null;
