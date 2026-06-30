@@ -28,6 +28,7 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
   const [previewHtml, setPreviewHtml] = useState(() => buildPreviewDocument(initialProject));
   const [showNewFile, setShowNewFile] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [showPreview, setShowPreview] = useState(true);
   const [splitPercent, setSplitPercent] = useState(50);
   const splitContainerRef = useRef<HTMLDivElement>(null);
@@ -64,6 +65,7 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
       const updated: Project = await res.json();
       setProject(updated);
       setSaveStatus('saved');
+      setSavedAt(new Date());
       setPreviewHtml(buildPreviewDocument({
         ...updated,
         files: updated.files.map((f) => ({
@@ -212,7 +214,13 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
             <span className="font-medium text-foreground">{project.name}</span>
           </Link>
           <span className="text-sm text-muted">
-            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Unsaved'}
+            {saveStatus === 'saving'
+              ? 'Saving…'
+              : saveStatus === 'unsaved'
+              ? 'Unsaved'
+              : savedAt
+              ? `Saved at ${savedAt.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}`
+              : 'Saved'}
           </span>
         </div>
 
@@ -235,7 +243,7 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
           </Button>
           {project.published ? (
             <Link
-              href={`/serve/${project.id}`}
+              href={`/p/${project.id}`}
               target="_blank"
               className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent/90"
             >
