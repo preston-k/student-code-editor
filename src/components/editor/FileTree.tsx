@@ -51,12 +51,12 @@ export function FileTree({ files, activeFileId, onSelect, onCreate, onDelete }: 
         {files.map((file) => (
           <div
             key={file.id}
-            className={`group/row flex items-center ${activeFileId === file.id ? 'bg-accent-light' : ''}`}
+            className={`group/row flex items-center ${activeFileId === file.id ? 'bg-accent-light' : 'hover:bg-black/5'}`}
           >
             <button
               type="button"
               onClick={() => onSelect(file.id)}
-              className={`flex min-w-0 flex-1 cursor-pointer items-center gap-2 py-[5px] pl-4 pr-2 text-left hover:bg-black/5 ${activeFileId === file.id ? 'font-medium' : ''}`}
+              className={`flex min-w-0 flex-1 cursor-pointer items-center gap-2 py-[5px] pl-4 pr-2 text-left ${activeFileId === file.id ? 'font-medium' : ''}`}
             >
               <i
                 className={`bi ${fileIconClass(file.type)} shrink-0 text-[13px]`}
