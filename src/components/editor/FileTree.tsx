@@ -53,13 +53,13 @@ export function FileTree({ files, activeFileId, onSelect, onCreate, onDelete }: 
             key={file.id}
             className="group/row flex items-center"
             style={{
-              background: activeFileId === file.id ? '#d6d6d6' : undefined,
+              background: activeFileId === file.id ? '#e0e0e0' : undefined,
             }}
           >
             <button
               type="button"
               onClick={() => onSelect(file.id)}
-              className="flex min-w-0 flex-1 items-center gap-2 py-[5px] pl-4 pr-2 text-left hover:bg-black/5"
+              className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 py-[5px] pl-4 pr-2 text-left hover:bg-black/5"
               style={{ background: activeFileId === file.id ? 'transparent' : undefined }}
             >
               <i
@@ -77,7 +77,7 @@ export function FileTree({ files, activeFileId, onSelect, onCreate, onDelete }: 
             <button
               type="button"
               onClick={() => onDelete(file.id)}
-              className="mr-1 rounded p-0.5 text-muted opacity-0 transition-opacity group-hover/row:opacity-100 hover:bg-red-100 hover:text-red-600"
+              className="mr-1 cursor-pointer rounded p-0.5 text-muted opacity-0 transition-opacity group-hover/row:opacity-100 hover:bg-red-100 hover:text-red-600"
               title="Delete file"
             >
               <i className="bi bi-x text-sm leading-none" aria-hidden="true" />
