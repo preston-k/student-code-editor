@@ -6,21 +6,21 @@ import Link from 'next/link';
 import type { Project } from '@/lib/types';
 import { buildPreviewDocument } from '@/lib/preview';
 
-export default function PublishedPage() {
+export default function ServePage() {
   const params = useParams();
   const [html, setHtml] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    const slug = params.slug as string;
-    fetch(`/api/p/${slug}`)
+    const id = params.id as string;
+    fetch(`/api/serve/${id}`)
       .then((res) => {
         if (!res.ok) throw new Error('Not found');
         return res.json();
       })
       .then((project: Project) => setHtml(buildPreviewDocument(project)))
       .catch(() => setNotFound(true));
-  }, [params.slug]);
+  }, [params.id]);
 
   if (notFound) {
     return (

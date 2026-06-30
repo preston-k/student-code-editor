@@ -196,7 +196,7 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
           </Button>
           {project.published ? (
             <Link
-              href={`/p/${project.slug}`}
+              href={`/serve/${project.id}`}
               target="_blank"
               className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent/90"
             >
