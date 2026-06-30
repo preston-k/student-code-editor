@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getProjectById } from '@/lib/storage';
-import { buildPublishedDocument, publishedNoCrawlHeaders } from '@/lib/preview';
+import { buildPublishedDocument, publishedNoCrawlHeaders, rewritePublishedCss } from '@/lib/preview';
 
 function contentType(type: string): string {
   switch (type) {
@@ -30,6 +30,8 @@ export async function GET(
 
   const body = file.type === 'html'
     ? buildPublishedDocument(project, file.content)
+    : file.type === 'css'
+    ? rewritePublishedCss(file.content, id)
     : file.content;
 
   return new NextResponse(body, {

@@ -8,12 +8,61 @@ function findEntryFile(files: ProjectFile[]): ProjectFile | undefined {
   );
 }
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function assetPathPattern(filename: string): string {
   const escaped = escapeRegex(filename);
   return `(?:\\.\\/)?${escaped}(?:\\?[^"'#]*)?(?:#[^"']*)?`;
 }
 
-function inlineAssets(html: string, files: ProjectFile[]): string {
+function publishedPath(projectId: string): string {
+  return `/p/${projectId}`;
+}
+
+function isAlreadyPublishedPath(url: string, projectId: string): boolean {
+  const prefix = publishedPath(projectId);
+  return url === prefix || url === `${prefix}/` || url.startsWith(`${prefix}/`);
+}
+
+function rewriteRootPath(url: string, projectId: string): string {
+  const trimmed = url.trim();
+  if (!trimmed.startsWith('/') || trimmed.startsWith('//')) return url;
+  if (isAlreadyPublishedPath(trimmed, projectId)) return url;
+  const path = trimmed.slice(1);
+  const base = publishedPath(projectId);
+  return path ? `${base}/${path}` : `${base}/`;
+}
+
+export function rewritePublishedCss(css: string, projectId: string): string {
+  return css.replace(
+    /url\(\s*(["']?)(\/(?!\/)[^)'"]*)\1\s*\)/gi,
+    (match, quote, url) => {
+      const rewritten = rewriteRootPath(url, projectId);
+      return rewritten === url ? match : `url(${quote}${rewritten}${quote})`;
+    },
+  );
+}
+
+function rewritePublishedHtml(html: string, projectId: string): string {
+  const withAttrs = html.replace(
+    /\b(href|src|action|poster|data|formaction)\s*=\s*(["'])\/(?!\/)([^"'#]*)\2/gi,
+    (match, attr, quote, path) => {
+      const url = `/${path}`;
+      const rewritten = rewriteRootPath(url, projectId);
+      return rewritten === url ? match : `${attr}=${quote}${rewritten}${quote}`;
+    },
+  );
+
+  const baseTag = `<base href="${publishedPath(projectId)}/">`;
+  if (/<head[^>]*>/i.test(withAttrs)) {
+    return withAttrs.replace(/<head([^>]*)>/i, `<head$1>${baseTag}`);
+  }
+  return `${baseTag}${withAttrs}`;
+}
+
+function inlineAssets(html: string, files: ProjectFile[], projectId?: string): string {
   let result = html;
 
   for (const file of files) {
@@ -22,9 +71,10 @@ function inlineAssets(html: string, files: ProjectFile[]): string {
         `<link[^>]+href=["']${assetPathPattern(file.name)}["'][^>]*>`,
         'gi',
       );
+      const cssContent = projectId ? rewritePublishedCss(file.content, projectId) : file.content;
       result = result.replace(
         hrefPattern,
-        `<style>\n${file.content}\n</style>`,
+        `<style>\n${cssContent}\n</style>`,
       );
     }
 
@@ -41,10 +91,6 @@ function inlineAssets(html: string, files: ProjectFile[]): string {
   }
 
   return result;
-}
-
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export function buildPreviewDocument(project: Project): string {
@@ -70,17 +116,20 @@ export function buildPreviewDocument(project: Project): string {
 }
 
 export function buildPublishedDocument(project: Project, htmlContent?: string): string {
-  const html = htmlContent
-    ? inlineAssets(htmlContent, project.files)
-    : buildPreviewDocument(project);
+  const entry = findEntryFile(project.files);
+  const sourceHtml = htmlContent ?? entry?.content;
 
+  if (!sourceHtml) {
+    return buildPreviewDocument(project);
+  }
+
+  const inlined = inlineAssets(sourceHtml, project.files, project.id);
+  const html = rewritePublishedHtml(inlined, project.id);
   const robotsMeta = '<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">';
-  const navScript = `<script>(function(){var b='/p/${project.id}/';document.addEventListener('click',function(e){var a=e.target.closest('a[href]');if(!a)return;var h=a.getAttribute('href');if(!h||h[0]==='#'||h.startsWith('http')||h.startsWith('//')|| h.startsWith('mailto:')||h.startsWith('tel:'))return;e.preventDefault();location.href=h[0]==='/'?b+h.slice(1):b+h;});})();</script>`;
-  const headInjection = robotsMeta + navScript;
 
   return html.includes('</head>')
-    ? html.replace('</head>', headInjection + '</head>')
-    : html + headInjection;
+    ? html.replace('</head>', robotsMeta + '</head>')
+    : html + robotsMeta;
 }
 
 export const publishedNoCrawlHeaders = {
