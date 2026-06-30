@@ -1,52 +1,55 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Project } from '@/lib/types';
+import {
+  getStudentName,
+  signOut,
+  listProjectsByOwner,
+  createProject,
+  deleteProject,
+} from '@/lib/client-storage';
 import { ProjectCard } from '@/components/dashboard/ProjectCard';
 import { CreateProjectModal } from '@/components/dashboard/CreateProjectModal';
 import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
 
-interface DashboardClientProps {
-  studentName: string;
-}
-
-export function DashboardClient({ studentName }: DashboardClientProps) {
+export function DashboardClient() {
   const router = useRouter();
+  const [studentName, setStudentName] = useState<string | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
 
-  const loadProjects = useCallback(async () => {
-    const response = await fetch('/api/projects');
-    if (response.status === 401) {
-      router.push('/');
+  useEffect(() => {
+    const name = getStudentName();
+    if (!name) {
+      router.replace('/');
       return;
     }
-    const data = (await response.json()) as Project[];
-    setProjects(data);
-    setLoading(false);
+    setStudentName(name);
+    setProjects(listProjectsByOwner(name));
   }, [router]);
 
-  useEffect(() => {
-    loadProjects();
-  }, [loadProjects]);
+  function handleCreate(name: string, description?: string) {
+    if (!studentName) return;
+    createProject(studentName, { name, description });
+    setProjects(listProjectsByOwner(studentName));
+  }
 
-  async function handleDelete(id: string) {
+  function handleDelete(id: string) {
+    if (!studentName) return;
     if (!confirm('Delete this project?')) return;
-
-    const response = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
-    if (response.ok) {
-      setProjects((current) => current.filter((project) => project.id !== id));
-    }
+    deleteProject(id, studentName);
+    setProjects(listProjectsByOwner(studentName));
   }
 
-  async function handleSignOut() {
-    await fetch('/api/auth', { method: 'DELETE' });
+  function handleSignOut() {
+    signOut();
     router.push('/');
-    router.refresh();
   }
+
+  if (!studentName) return null;
 
   return (
     <div className="min-h-full bg-white">
@@ -77,9 +80,7 @@ export function DashboardClient({ studentName }: DashboardClientProps) {
           <p className="mt-1 text-muted">Build, preview, and publish HTML sites.</p>
         </div>
 
-        {loading ? (
-          <p className="text-muted">Loading projects...</p>
-        ) : projects.length === 0 ? (
+        {projects.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border px-6 py-16 text-center">
             <i className="bi bi-folder2-open mb-4 text-3xl text-muted" aria-hidden="true" />
             <p className="mb-4 text-muted">No projects yet. Create your first site.</p>
@@ -100,7 +101,7 @@ export function DashboardClient({ studentName }: DashboardClientProps) {
       {showCreate ? (
         <CreateProjectModal
           onClose={() => setShowCreate(false)}
-          onCreated={loadProjects}
+          onCreated={handleCreate}
         />
       ) : null}
     </div>

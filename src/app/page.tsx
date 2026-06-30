@@ -1,13 +1,18 @@
-import { redirect } from 'next/navigation';
-import { getStudentName } from '@/lib/session';
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { getStudentName } from '@/lib/client-storage';
 import { SignInForm } from '@/components/auth/SignInForm';
 
-export default async function HomePage() {
-  const studentName = await getStudentName();
+export default function HomePage() {
+  const router = useRouter();
 
-  if (studentName) {
-    redirect('/dashboard');
-  }
+  useEffect(() => {
+    if (getStudentName()) {
+      router.replace('/dashboard');
+    }
+  }, [router]);
 
   return <SignInForm />;
 }

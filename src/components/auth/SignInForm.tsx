@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { signIn } from '@/lib/client-storage';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
@@ -13,25 +14,16 @@ export function SignInForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  async function handleSubmit(event: React.FormEvent) {
+  function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setLoading(true);
-    setError('');
-
-    const response = await fetch('/api/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    });
-
-    if (!response.ok) {
+    const trimmed = name.trim();
+    if (!trimmed) {
       setError('Please enter your name to continue');
-      setLoading(false);
       return;
     }
-
+    setLoading(true);
+    signIn(trimmed);
     router.push('/dashboard');
-    router.refresh();
   }
 
   return (

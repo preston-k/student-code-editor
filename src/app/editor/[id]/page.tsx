@@ -1,25 +1,35 @@
-import { notFound, redirect } from 'next/navigation';
-import { getStudentName } from '@/lib/session';
-import { getProjectById } from '@/lib/storage';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { getStudentName, getProjectById } from '@/lib/client-storage';
 import { EditorWorkspace } from '@/components/editor/EditorWorkspace';
+import type { Project } from '@/lib/types';
 
-type EditorPageProps = {
-  params: Promise<{ id: string }>;
-};
+export default function EditorPage() {
+  const params = useParams();
+  const router = useRouter();
+  const [project, setProject] = useState<Project | null>(null);
 
-export default async function EditorPage({ params }: EditorPageProps) {
-  const studentName = await getStudentName();
+  useEffect(() => {
+    const studentName = getStudentName();
+    if (!studentName) {
+      router.replace('/');
+      return;
+    }
 
-  if (!studentName) {
-    redirect('/');
-  }
+    const id = params.id as string;
+    const found = getProjectById(id);
 
-  const { id } = await params;
-  const project = await getProjectById(id);
+    if (!found || found.owner !== studentName) {
+      router.replace('/dashboard');
+      return;
+    }
 
-  if (!project || project.owner !== studentName) {
-    notFound();
-  }
+    setProject(found);
+  }, [params.id, router]);
+
+  if (!project) return null;
 
   return <EditorWorkspace initialProject={project} />;
 }

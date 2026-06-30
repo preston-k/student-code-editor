@@ -1,14 +1,24 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import type { Project, ProjectFile } from '@/lib/types';
+import type { Project } from '@/lib/types';
+import {
+  getStudentName,
+  updateFile,
+  addFile,
+  deleteFile,
+  updateProject,
+} from '@/lib/client-storage';
+import { buildPreviewDocument } from '@/lib/preview';
 import { FileTree } from '@/components/editor/FileTree';
 import { CodeEditor } from '@/components/editor/CodeEditor';
 import { PreviewPane } from '@/components/editor/PreviewPane';
 import { NewFileModal } from '@/components/editor/NewFileModal';
 import { Button } from '@/components/ui/Button';
 import { Logo } from '@/components/ui/Logo';
+
+const AUTOSAVE_DELAY = 1500;
 
 interface EditorWorkspaceProps {
   initialProject: Project;
@@ -22,11 +32,19 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
   const [drafts, setDrafts] = useState<Record<string, string>>(() =>
     Object.fromEntries(initialProject.files.map((file) => [file.id, file.content])),
   );
-  const [previewKey, setPreviewKey] = useState(0);
+  const [previewHtml, setPreviewHtml] = useState(() => buildPreviewDocument(initialProject));
   const [showNewFile, setShowNewFile] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(true);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved');
   const [showPreview, setShowPreview] = useState(true);
+
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const projectRef = useRef(project);
+  const draftsRef = useRef(drafts);
+
+  useEffect(() => { projectRef.current = project; }, [project]);
+  useEffect(() => { draftsRef.current = drafts; }, [drafts]);
+
+  const owner = getStudentName() ?? '';
 
   const activeFile = useMemo(
     () => project.files.find((file) => file.id === activeFileId) ?? null,
@@ -35,60 +53,69 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
 
   const activeContent = activeFile ? drafts[activeFile.id] ?? activeFile.content : '';
 
+  const saveFile = useCallback((fileId: string) => {
+    const currentProject = projectRef.current;
+    const file = currentProject.files.find((f) => f.id === fileId);
+    if (!file) return;
+
+    setSaveStatus('saving');
+    const updated = updateFile(currentProject.id, owner, fileId, {
+      content: draftsRef.current[fileId] ?? file.content,
+    });
+
+    if (updated) {
+      setProject(updated);
+      setSaveStatus('saved');
+      setPreviewHtml(buildPreviewDocument({
+        ...updated,
+        files: updated.files.map((f) => ({
+          ...f,
+          content: draftsRef.current[f.id] ?? f.content,
+        })),
+      }));
+    }
+  }, [owner]);
+
   const markDirty = useCallback((fileId: string, content: string) => {
     setDrafts((current) => ({ ...current, [fileId]: content }));
-    setSaved(false);
-  }, []);
+    setSaveStatus('unsaved');
 
-  async function saveCurrentFile() {
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(() => saveFile(fileId), AUTOSAVE_DELAY);
+  }, [saveFile]);
+
+  function saveCurrentFile() {
     if (!activeFile) return;
+    if (autosaveTimer.current) {
+      clearTimeout(autosaveTimer.current);
+      autosaveTimer.current = null;
+    }
+    saveFile(activeFile.id);
+  }
 
-    setSaving(true);
-    const response = await fetch(`/api/projects/${project.id}/files/${activeFile.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: drafts[activeFile.id] ?? activeFile.content }),
-    });
+  function handleCreateFile(name: string) {
+    try {
+      const updated = addFile(project.id, owner, { name });
+      if (!updated) return;
 
-    if (response.ok) {
-      const updated = (await response.json()) as Project;
+      const created = updated.files.find(
+        (file) => !project.files.some((existing) => existing.id === file.id),
+      );
+
       setProject(updated);
-      setSaved(true);
-      setPreviewKey((key) => key + 1);
-    }
-
-    setSaving(false);
-  }
-
-  async function handleCreateFile(name: string) {
-    const response = await fetch(`/api/projects/${project.id}/files`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
-    });
-
-    if (!response.ok) return;
-
-    const updated = (await response.json()) as Project;
-    const created = updated.files.find(
-      (file) => !project.files.some((existing) => existing.id === file.id),
-    );
-
-    setProject(updated);
-    if (created) {
-      setDrafts((current) => ({ ...current, [created.id]: created.content }));
-      setActiveFileId(created.id);
+      if (created) {
+        setDrafts((current) => ({ ...current, [created.id]: created.content }));
+        setActiveFileId(created.id);
+      }
+    } catch (error) {
+      if (error instanceof Error) alert(error.message);
     }
   }
 
-  async function handleDeleteFile(fileId: string) {
-    const response = await fetch(`/api/projects/${project.id}/files/${fileId}`, {
-      method: 'DELETE',
-    });
+  function handleDeleteFile(fileId: string) {
+    const updated = deleteFile(project.id, owner, fileId);
+    if (!updated) return;
 
-    if (!response.ok) return;
-
-    const updated = (await response.json()) as Project;
     setProject(updated);
 
     if (activeFileId === fileId) {
@@ -100,21 +127,19 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
       delete next[fileId];
       return next;
     });
-    setPreviewKey((key) => key + 1);
+    setPreviewHtml(buildPreviewDocument(updated));
   }
 
-  async function togglePublish() {
-    const response = await fetch(`/api/projects/${project.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ published: !project.published }),
-    });
-
-    if (response.ok) {
-      const updated = (await response.json()) as Project;
-      setProject(updated);
-    }
+  function togglePublish() {
+    const updated = updateProject(project.id, owner, { published: !project.published });
+    if (updated) setProject(updated);
   }
+
+  useEffect(() => {
+    return () => {
+      if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    };
+  }, []);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -137,7 +162,7 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
             <span className="font-medium text-foreground">{project.name}</span>
           </Link>
           <span className="text-sm text-muted">
-            {saved ? 'Saved' : 'Unsaved changes'}
+            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Unsaved'}
           </span>
         </div>
 
@@ -150,9 +175,9 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
             <i className={`bi ${showPreview ? 'bi-layout-split' : 'bi-layout-sidebar'}`} aria-hidden="true" />
             {showPreview ? 'Hide preview' : 'Show preview'}
           </Button>
-          <Button variant="secondary" onClick={saveCurrentFile} disabled={saving || !activeFile}>
+          <Button variant="secondary" onClick={saveCurrentFile} disabled={!activeFile || saveStatus === 'saving'}>
             <i className="bi bi-floppy" aria-hidden="true" />
-            {saving ? 'Saving...' : 'Save'}
+            {saveStatus === 'saving' ? 'Saving…' : 'Save'}
           </Button>
           <Button variant="secondary" onClick={togglePublish}>
             <i className={`bi ${project.published ? 'bi-globe' : 'bi-globe2'}`} aria-hidden="true" />
@@ -193,7 +218,7 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
             </div>
           )}
 
-          {showPreview ? <PreviewPane projectId={project.id} refreshKey={previewKey} /> : null}
+          {showPreview ? <PreviewPane html={previewHtml} /> : null}
         </div>
       </div>
 

@@ -6,33 +6,18 @@ import { Input } from '@/components/ui/Input';
 
 interface CreateProjectModalProps {
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (name: string, description?: string) => void;
 }
 
 export function CreateProjectModal({ onClose, onCreated }: CreateProjectModalProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
-  async function handleSubmit(event: React.FormEvent) {
+  function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    setLoading(true);
-    setError('');
-
-    const response = await fetch('/api/projects', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, description }),
-    });
-
-    if (!response.ok) {
-      setError('Could not create project');
-      setLoading(false);
-      return;
-    }
-
-    onCreated();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    onCreated(trimmed, description.trim() || undefined);
     onClose();
   }
 
@@ -65,13 +50,12 @@ export function CreateProjectModal({ onClose, onCreated }: CreateProjectModalPro
             value={description}
             onChange={(event) => setDescription(event.target.value)}
           />
-          {error ? <p className="text-sm text-red-600">{error}</p> : null}
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || !name.trim()}>
-              {loading ? 'Creating...' : 'Create project'}
+            <Button type="submit" disabled={!name.trim()}>
+              Create project
             </Button>
           </div>
         </form>

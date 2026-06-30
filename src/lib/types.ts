@@ -33,7 +33,7 @@ export interface CreateProjectInput {
 
 export interface CreateFileInput {
   name: string;
-  type: FileType;
+  type?: FileType;
   content?: string;
 }
 

@@ -1,21 +1,37 @@
-import { notFound } from 'next/navigation';
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { getProjectBySlug } from '@/lib/storage';
+import { getProjectBySlug } from '@/lib/client-storage';
 import { buildPreviewDocument } from '@/lib/preview';
 
-type PublishedPageProps = {
-  params: Promise<{ slug: string }>;
-};
+export default function PublishedPage() {
+  const params = useParams();
+  const [html, setHtml] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
-export default async function PublishedPage({ params }: PublishedPageProps) {
-  const { slug } = await params;
-  const project = await getProjectBySlug(slug);
+  useEffect(() => {
+    const slug = params.slug as string;
+    const project = getProjectBySlug(slug);
 
-  if (!project) {
-    notFound();
+    if (!project) {
+      setNotFound(true);
+      return;
+    }
+
+    setHtml(buildPreviewDocument(project));
+  }, [params.slug]);
+
+  if (notFound) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-muted">This site could not be found.</p>
+      </div>
+    );
   }
 
-  const html = buildPreviewDocument(project);
+  if (!html) return null;
 
   return (
     <>
@@ -30,9 +46,9 @@ export default async function PublishedPage({ params }: PublishedPageProps) {
       </div>
       <iframe
         srcDoc={html}
-        title={project.name}
+        title="Published site"
         className="h-screen w-full border-0"
-        sandbox="allow-scripts allow-same-origin"
+        sandbox="allow-scripts"
       />
     </>
   );
