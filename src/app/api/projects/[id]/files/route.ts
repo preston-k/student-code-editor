@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireStudentName } from '@/lib/session';
+import { requireUserId } from '@/lib/session';
 import { addFile, getProjectById } from '@/lib/storage';
 
 type RouteContext = {
@@ -8,7 +8,7 @@ type RouteContext = {
 
 export async function POST(request: Request, context: RouteContext) {
   try {
-    const owner = await requireStudentName();
+    const owner = await requireUserId();
     const { id } = await context.params;
     const body = await request.json();
 
@@ -40,7 +40,7 @@ export async function POST(request: Request, context: RouteContext) {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    const owner = await requireStudentName();
+    const owner = await requireUserId();
     const { id } = await context.params;
     const project = await getProjectById(id);
 

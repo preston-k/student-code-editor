@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { requireStudentName } from '@/lib/session';
+import { requireUserId } from '@/lib/session';
 import { createProject, listProjectsByOwner } from '@/lib/storage';
 
 export async function GET() {
   try {
-    const owner = await requireStudentName();
+    const owner = await requireUserId();
     const projects = await listProjectsByOwner(owner);
     return NextResponse.json(projects);
   } catch {
@@ -14,7 +14,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const owner = await requireStudentName();
+    const owner = await requireUserId();
     const body = await request.json();
 
     if (!body.name || typeof body.name !== 'string') {

@@ -1,16 +1,7 @@
-import { cookies } from 'next/headers';
+import { auth } from '@/lib/auth/server';
 
-export const SESSION_COOKIE = 'spark_student';
-
-export async function getStudentName(): Promise<string | null> {
-  const cookieStore = await cookies();
-  return cookieStore.get(SESSION_COOKIE)?.value ?? null;
-}
-
-export async function requireStudentName(): Promise<string> {
-  const name = await getStudentName();
-  if (!name) {
-    throw new Error('Unauthorized');
-  }
-  return name;
+export async function requireUserId(): Promise<string> {
+  const { data, error } = await auth.getSession();
+  if (error || !data?.session?.userId) throw new Error('Unauthorized');
+  return data.session.userId;
 }

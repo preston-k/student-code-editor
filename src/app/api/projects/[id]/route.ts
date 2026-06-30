@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireStudentName } from '@/lib/session';
+import { requireUserId } from '@/lib/session';
 import {
   deleteProject,
   getProjectById,
@@ -12,7 +12,7 @@ type RouteContext = {
 
 export async function GET(_request: Request, context: RouteContext) {
   try {
-    const owner = await requireStudentName();
+    const owner = await requireUserId();
     const { id } = await context.params;
     const project = await getProjectById(id);
 
@@ -28,7 +28,7 @@ export async function GET(_request: Request, context: RouteContext) {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const owner = await requireStudentName();
+    const owner = await requireUserId();
     const { id } = await context.params;
     const body = await request.json();
 
@@ -50,7 +50,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    const owner = await requireStudentName();
+    const owner = await requireUserId();
     const { id } = await context.params;
     const deleted = await deleteProject(id, owner);
 

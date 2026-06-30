@@ -8,7 +8,7 @@ export async function initSchema() {
       id          UUID PRIMARY KEY,
       name        TEXT NOT NULL,
       slug        TEXT NOT NULL UNIQUE,
-      owner       TEXT NOT NULL,
+      user_id     TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
       published   BOOLEAN NOT NULL DEFAULT FALSE,
       created_at  TIMESTAMPTZ NOT NULL,
@@ -26,5 +26,16 @@ export async function initSchema() {
       updated_at TIMESTAMPTZ NOT NULL,
       UNIQUE (project_id, name)
     )
+  `;
+  // migrate: rename owner → user_id if the old column exists
+  await sql`
+    DO $$ BEGIN
+      IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'projects' AND column_name = 'owner'
+      ) THEN
+        ALTER TABLE projects RENAME COLUMN owner TO user_id;
+      END IF;
+    END $$
   `;
 }

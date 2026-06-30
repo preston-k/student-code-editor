@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { Project } from '@/lib/types';
-import { getStudentName, signOut } from '@/lib/client-storage';
+import { authClient } from '@/lib/auth/client';
 import { ProjectCard } from '@/components/dashboard/ProjectCard';
 import { CreateProjectModal } from '@/components/dashboard/CreateProjectModal';
 import { Button } from '@/components/ui/Button';
@@ -11,25 +11,24 @@ import { Logo } from '@/components/ui/Logo';
 
 export function DashboardClient() {
   const router = useRouter();
-  const [studentName, setStudentName] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState('');
   const [projects, setProjects] = useState<Project[]>([]);
   const [showCreate, setShowCreate] = useState(false);
 
   async function fetchProjects() {
     const res = await fetch('/api/projects');
-    if (res.ok) {
-      setProjects(await res.json());
-    }
+    if (res.ok) setProjects(await res.json());
   }
 
   useEffect(() => {
-    const name = getStudentName();
-    if (!name) {
-      router.replace('/');
-      return;
-    }
-    setStudentName(name);
-    fetchProjects();
+    authClient.getSession().then(({ data }) => {
+      if (!data?.session) {
+        router.replace('/auth/sign-in');
+        return;
+      }
+      setDisplayName(data.user?.name || data.user?.email || '');
+      fetchProjects();
+    });
   }, [router]);
 
   async function handleCreate(name: string, description?: string) {
@@ -38,26 +37,19 @@ export function DashboardClient() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, description }),
     });
-    if (res.ok) {
-      await fetchProjects();
-    }
+    if (res.ok) await fetchProjects();
   }
 
   async function handleDelete(id: string) {
     if (!confirm('Delete this project?')) return;
     const res = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
-    if (res.ok) {
-      setProjects((current) => current.filter((p) => p.id !== id));
-    }
+    if (res.ok) setProjects((current) => current.filter((p) => p.id !== id));
   }
 
   async function handleSignOut() {
-    await fetch('/api/auth', { method: 'DELETE' });
-    signOut();
-    router.push('/');
+    await authClient.signOut();
+    router.push('/auth/sign-in');
   }
-
-  if (!studentName) return null;
 
   return (
     <div className="min-h-full bg-white">
@@ -67,7 +59,7 @@ export function DashboardClient() {
             <Logo size="sm" />
             <div>
               <p className="font-medium">Spark</p>
-              <p className="text-sm text-muted">Welcome, {studentName}</p>
+              {displayName ? <p className="text-sm text-muted">Welcome, {displayName}</p> : null}
             </div>
           </div>
           <div className="flex items-center gap-2">

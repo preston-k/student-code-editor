@@ -20,7 +20,7 @@ type DbProject = {
   id: string;
   name: string;
   slug: string;
-  owner: string;
+  user_id: string;
   description: string;
   published: boolean;
   created_at: string;
@@ -57,7 +57,7 @@ async function assembleProject(row: DbProject): Promise<Project> {
     id: row.id,
     name: row.name,
     slug: row.slug,
-    owner: row.owner,
+    owner: row.user_id,
     description: row.description,
     published: row.published,
     files: files.map(toProjectFile),
@@ -99,10 +99,10 @@ function defaultFiles(): Array<{ name: string; type: ProjectFile['type']; conten
   ];
 }
 
-export async function listProjectsByOwner(owner: string): Promise<Project[]> {
+export async function listProjectsByOwner(user_id: string): Promise<Project[]> {
   await ensureSchema();
   const rows = (await sql`
-    SELECT * FROM projects WHERE owner = ${owner} ORDER BY updated_at DESC
+    SELECT * FROM projects WHERE user_id = ${user_id} ORDER BY updated_at DESC
   `) as DbProject[];
 
   return Promise.all(rows.map(assembleProject));
@@ -124,7 +124,7 @@ export async function getProjectBySlug(slug: string): Promise<Project | null> {
   return assembleProject(rows[0]);
 }
 
-export async function createProject(owner: string, input: CreateProjectInput): Promise<Project> {
+export async function createProject(user_id: string, input: CreateProjectInput): Promise<Project> {
   await ensureSchema();
   const allSlugs = (await sql`SELECT slug FROM projects`) as { slug: string }[];
   const slug = uniqueSlug(input.name, allSlugs.map((r) => r.slug));
@@ -132,8 +132,8 @@ export async function createProject(owner: string, input: CreateProjectInput): P
   const id = randomUUID();
 
   await sql`
-    INSERT INTO projects (id, name, slug, owner, description, published, created_at, updated_at)
-    VALUES (${id}, ${input.name.trim()}, ${slug}, ${owner}, ${input.description?.trim() ?? ''}, FALSE, ${now}, ${now})
+    INSERT INTO projects (id, name, slug, user_id, description, published, created_at, updated_at)
+    VALUES (${id}, ${input.name.trim()}, ${slug}, ${user_id}, ${input.description?.trim() ?? ''}, FALSE, ${now}, ${now})
   `;
 
   const files = defaultFiles();
@@ -150,11 +150,11 @@ export async function createProject(owner: string, input: CreateProjectInput): P
 
 export async function updateProject(
   id: string,
-  owner: string,
+  user_id: string,
   updates: Partial<Pick<Project, 'name' | 'description' | 'published'>>,
 ): Promise<Project | null> {
   await ensureSchema();
-  const rows = (await sql`SELECT * FROM projects WHERE id = ${id} AND owner = ${owner}`) as DbProject[];
+  const rows = (await sql`SELECT * FROM projects WHERE id = ${id} AND user_id = ${user_id}`) as DbProject[];
   if (!rows[0]) return null;
 
   const now = new Date().toISOString();
@@ -171,19 +171,19 @@ export async function updateProject(
   return getProjectById(id);
 }
 
-export async function deleteProject(id: string, owner: string): Promise<boolean> {
+export async function deleteProject(id: string, user_id: string): Promise<boolean> {
   await ensureSchema();
-  const result = await sql`DELETE FROM projects WHERE id = ${id} AND owner = ${owner} RETURNING id`;
+  const result = await sql`DELETE FROM projects WHERE id = ${id} AND user_id = ${user_id} RETURNING id`;
   return (result as { id: string }[]).length > 0;
 }
 
 export async function addFile(
   projectId: string,
-  owner: string,
+  user_id: string,
   input: CreateFileInput,
 ): Promise<Project | null> {
   await ensureSchema();
-  const rows = (await sql`SELECT * FROM projects WHERE id = ${projectId} AND owner = ${owner}`) as DbProject[];
+  const rows = (await sql`SELECT * FROM projects WHERE id = ${projectId} AND user_id = ${user_id}`) as DbProject[];
   if (!rows[0]) return null;
 
   const name = input.name.trim();
@@ -209,12 +209,12 @@ export async function addFile(
 
 export async function updateFile(
   projectId: string,
-  owner: string,
+  user_id: string,
   fileId: string,
   input: UpdateFileInput,
 ): Promise<Project | null> {
   await ensureSchema();
-  const rows = (await sql`SELECT * FROM projects WHERE id = ${projectId} AND owner = ${owner}`) as DbProject[];
+  const rows = (await sql`SELECT * FROM projects WHERE id = ${projectId} AND user_id = ${user_id}`) as DbProject[];
   if (!rows[0]) return null;
 
   const fileRows = (await sql`SELECT * FROM project_files WHERE id = ${fileId} AND project_id = ${projectId}`) as DbFile[];
@@ -244,11 +244,11 @@ export async function updateFile(
 
 export async function deleteFile(
   projectId: string,
-  owner: string,
+  user_id: string,
   fileId: string,
 ): Promise<Project | null> {
   await ensureSchema();
-  const rows = (await sql`SELECT * FROM projects WHERE id = ${projectId} AND owner = ${owner}`) as DbProject[];
+  const rows = (await sql`SELECT * FROM projects WHERE id = ${projectId} AND user_id = ${user_id}`) as DbProject[];
   if (!rows[0]) return null;
 
   await sql`DELETE FROM project_files WHERE id = ${fileId} AND project_id = ${projectId}`;

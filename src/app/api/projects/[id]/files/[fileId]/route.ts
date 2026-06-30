@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireStudentName } from '@/lib/session';
+import { requireUserId } from '@/lib/session';
 import { deleteFile, updateFile } from '@/lib/storage';
 
 type RouteContext = {
@@ -8,7 +8,7 @@ type RouteContext = {
 
 export async function PATCH(request: Request, context: RouteContext) {
   try {
-    const owner = await requireStudentName();
+    const owner = await requireUserId();
     const { id, fileId } = await context.params;
     const body = await request.json();
 
@@ -35,7 +35,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
 export async function DELETE(_request: Request, context: RouteContext) {
   try {
-    const owner = await requireStudentName();
+    const owner = await requireUserId();
     const { id, fileId } = await context.params;
     const project = await deleteFile(id, owner, fileId);
 
