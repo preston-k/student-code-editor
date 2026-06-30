@@ -8,13 +8,18 @@ function findEntryFile(files: ProjectFile[]): ProjectFile | undefined {
   );
 }
 
+function assetPathPattern(filename: string): string {
+  const escaped = escapeRegex(filename);
+  return `(?:\\.\\/)?${escaped}(?:\\?[^"'#]*)?(?:#[^"']*)?`;
+}
+
 function inlineAssets(html: string, files: ProjectFile[]): string {
   let result = html;
 
   for (const file of files) {
     if (file.type === 'css') {
       const hrefPattern = new RegExp(
-        `<link[^>]+href=["']${escapeRegex(file.name)}["'][^>]*>`,
+        `<link[^>]+href=["']${assetPathPattern(file.name)}["'][^>]*>`,
         'gi',
       );
       result = result.replace(
@@ -25,7 +30,7 @@ function inlineAssets(html: string, files: ProjectFile[]): string {
 
     if (file.type === 'js') {
       const srcPattern = new RegExp(
-        `<script[^>]+src=["']${escapeRegex(file.name)}["'][^>]*></script>`,
+        `<script[^>]+src=["']${assetPathPattern(file.name)}["'][^>]*>\\s*</script>`,
         'gi',
       );
       result = result.replace(
@@ -69,7 +74,6 @@ export function buildPublishedDocument(project: Project, htmlContent?: string): 
     ? inlineAssets(htmlContent, project.files)
     : buildPreviewDocument(project);
 
-  // Intercept relative/root-relative link clicks and rewrite them to /p/[id]/filename
   const navScript = `<script>(function(){var b='/p/${project.id}/';document.addEventListener('click',function(e){var a=e.target.closest('a[href]');if(!a)return;var h=a.getAttribute('href');if(!h||h[0]==='#'||h.startsWith('http')||h.startsWith('//')|| h.startsWith('mailto:')||h.startsWith('tel:'))return;e.preventDefault();location.href=h[0]==='/'?b+h.slice(1):b+h;});})();</script>`;
 
   return html.includes('</head>')
@@ -90,4 +94,8 @@ export function getFileIcon(type: ProjectFile['type']): string {
     default:
       return 'bi-file-text';
   }
+}
+
+export function isProtectedFile(name: string): boolean {
+  return name === 'index.html';
 }

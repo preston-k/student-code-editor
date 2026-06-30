@@ -90,7 +90,6 @@ function defaultFiles(): Array<{ name: string; type: ProjectFile['type']; conten
 </head>
 <body>
 
-  <script src="script.js"></script>
 </body>
 </html>`,
     },
@@ -250,6 +249,13 @@ export async function deleteFile(
   await ensureSchema();
   const rows = (await sql`SELECT * FROM projects WHERE id = ${projectId} AND user_id = ${user_id}`) as DbProject[];
   if (!rows[0]) return null;
+
+  const fileRows = (await sql`SELECT * FROM project_files WHERE id = ${fileId} AND project_id = ${projectId}`) as DbFile[];
+  if (!fileRows[0]) return null;
+
+  if (fileRows[0].name === 'index.html') {
+    throw new Error('index.html cannot be deleted');
+  }
 
   await sql`DELETE FROM project_files WHERE id = ${fileId} AND project_id = ${projectId}`;
   const now = new Date().toISOString();

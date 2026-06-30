@@ -26,12 +26,13 @@ export function NewFileModal({ onClose, onCreate }: NewFileModalProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
             label="File name"
-            placeholder="page.html"
+            placeholder="about.html"
             value={name}
             onChange={(event) => setName(event.target.value)}
             autoFocus
             required
           />
+          <p className="text-xs text-muted">Use .html, .css, or .js</p>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancel

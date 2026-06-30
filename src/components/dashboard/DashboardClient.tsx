@@ -37,7 +37,10 @@ export function DashboardClient() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, description }),
     });
-    if (res.ok) await fetchProjects();
+    if (res.ok) {
+      const project: Project = await res.json();
+      router.push(`/editor/${project.id}`);
+    }
   }
 
   async function handleDelete(id: string) {

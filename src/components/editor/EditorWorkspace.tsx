@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import type { Project } from '@/lib/types';
-import { buildPreviewDocument } from '@/lib/preview';
+import { buildPreviewDocument, isProtectedFile } from '@/lib/preview';
 import { FileTree } from '@/components/editor/FileTree';
 import { CodeEditor } from '@/components/editor/CodeEditor';
 import { PreviewPane } from '@/components/editor/PreviewPane';
@@ -13,6 +13,22 @@ import { Logo } from '@/components/ui/Logo';
 
 const AUTOSAVE_DELAY = 1500;
 
+function defaultActiveFileId(project: Project): string | null {
+  const index = project.files.find((file) => file.name === 'index.html');
+  const css = project.files.find((file) => file.name === 'style.css');
+  return (index ?? css ?? project.files[0])?.id ?? null;
+}
+
+function projectWithDrafts(project: Project, drafts: Record<string, string>): Project {
+  return {
+    ...project,
+    files: project.files.map((file) => ({
+      ...file,
+      content: drafts[file.id] ?? file.content,
+    })),
+  };
+}
+
 interface EditorWorkspaceProps {
   initialProject: Project;
 }
@@ -20,7 +36,7 @@ interface EditorWorkspaceProps {
 export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
   const [project, setProject] = useState(initialProject);
   const [activeFileId, setActiveFileId] = useState<string | null>(
-    initialProject.files[0]?.id ?? null,
+    () => defaultActiveFileId(initialProject),
   );
   const [drafts, setDrafts] = useState<Record<string, string>>(() =>
     Object.fromEntries(initialProject.files.map((file) => [file.id, file.content])),
@@ -31,6 +47,7 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [showPreview, setShowPreview] = useState(true);
   const [splitPercent, setSplitPercent] = useState(50);
+  const [copiedLink, setCopiedLink] = useState(false);
   const splitContainerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
@@ -38,9 +55,11 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const projectRef = useRef(project);
   const draftsRef = useRef(drafts);
+  const saveStatusRef = useRef(saveStatus);
 
   useEffect(() => { projectRef.current = project; }, [project]);
   useEffect(() => { draftsRef.current = drafts; }, [drafts]);
+  useEffect(() => { saveStatusRef.current = saveStatus; }, [saveStatus]);
 
   const activeFile = useMemo(
     () => project.files.find((file) => file.id === activeFileId) ?? null,
@@ -49,10 +68,56 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
 
   const activeContent = activeFile ? drafts[activeFile.id] ?? activeFile.content : '';
 
+  const refreshPreview = useCallback((nextProject: Project, nextDrafts: Record<string, string>) => {
+    setPreviewHtml(buildPreviewDocument(projectWithDrafts(nextProject, nextDrafts)));
+  }, []);
+
+  const saveAllFiles = useCallback(async (): Promise<boolean> => {
+    if (autosaveTimer.current) {
+      clearTimeout(autosaveTimer.current);
+      autosaveTimer.current = null;
+    }
+
+    const currentProject = projectRef.current;
+    const currentDrafts = draftsRef.current;
+    const dirtyFiles = currentProject.files.filter(
+      (file) => (currentDrafts[file.id] ?? file.content) !== file.content,
+    );
+
+    if (dirtyFiles.length === 0) return true;
+
+    setSaveStatus('saving');
+    let latestProject = currentProject;
+
+    for (const file of dirtyFiles) {
+      const res = await fetch(`/api/projects/${currentProject.id}/files/${file.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: currentDrafts[file.id] ?? file.content }),
+      });
+
+      if (!res.ok) {
+        setSaveStatus('unsaved');
+        return false;
+      }
+
+      latestProject = await res.json();
+      projectRef.current = latestProject;
+    }
+
+    setProject(latestProject);
+    setSaveStatus('saved');
+    setSavedAt(new Date());
+    refreshPreview(latestProject, currentDrafts);
+    return true;
+  }, [refreshPreview]);
+
   const saveFile = useCallback(async (fileId: string) => {
     const currentProject = projectRef.current;
     const file = currentProject.files.find((f) => f.id === fileId);
     if (!file) return;
+
+    if ((draftsRef.current[fileId] ?? file.content) === file.content) return;
 
     setSaveStatus('saving');
     const res = await fetch(`/api/projects/${currentProject.id}/files/${fileId}`, {
@@ -63,20 +128,15 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
 
     if (res.ok) {
       const updated: Project = await res.json();
+      projectRef.current = updated;
       setProject(updated);
       setSaveStatus('saved');
       setSavedAt(new Date());
-      setPreviewHtml(buildPreviewDocument({
-        ...updated,
-        files: updated.files.map((f) => ({
-          ...f,
-          content: draftsRef.current[f.id] ?? f.content,
-        })),
-      }));
+      refreshPreview(updated, draftsRef.current);
     } else {
       setSaveStatus('unsaved');
     }
-  }, []);
+  }, [refreshPreview]);
 
   const markDirty = useCallback((fileId: string, content: string) => {
     const newDrafts = { ...draftsRef.current, [fileId]: content };
@@ -84,29 +144,17 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
     setDrafts(newDrafts);
     setSaveStatus('unsaved');
 
-    // Live preview (300ms debounce — fast feedback, doesn't hammer the iframe)
     if (previewTimer.current) clearTimeout(previewTimer.current);
     previewTimer.current = setTimeout(() => {
-      setPreviewHtml(buildPreviewDocument({
-        ...projectRef.current,
-        files: projectRef.current.files.map((f) => ({
-          ...f,
-          content: newDrafts[f.id] ?? f.content,
-        })),
-      }));
+      refreshPreview(projectRef.current, newDrafts);
     }, 300);
 
     if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
     autosaveTimer.current = setTimeout(() => saveFile(fileId), AUTOSAVE_DELAY);
-  }, [saveFile]);
+  }, [refreshPreview, saveFile]);
 
   function saveCurrentFile() {
-    if (!activeFile) return;
-    if (autosaveTimer.current) {
-      clearTimeout(autosaveTimer.current);
-      autosaveTimer.current = null;
-    }
-    saveFile(activeFile.id);
+    void saveAllFiles();
   }
 
   async function handleCreateFile(name: string) {
@@ -127,6 +175,7 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
       (file) => !project.files.some((existing) => existing.id === file.id),
     );
 
+    projectRef.current = updated;
     setProject(updated);
     if (created) {
       setDrafts((current) => ({ ...current, [created.id]: created.content }));
@@ -135,16 +184,32 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
   }
 
   async function handleDeleteFile(fileId: string) {
+    const file = project.files.find((item) => item.id === fileId);
+    if (!file) return;
+
+    if (isProtectedFile(file.name)) {
+      alert('index.html cannot be deleted.');
+      return;
+    }
+
+    if (!confirm(`Delete ${file.name}?`)) return;
+
     const res = await fetch(`/api/projects/${project.id}/files/${fileId}`, {
       method: 'DELETE',
     });
-    if (!res.ok) return;
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      if (data.error) alert(data.error);
+      return;
+    }
 
     const updated: Project = await res.json();
+    projectRef.current = updated;
     setProject(updated);
 
     if (activeFileId === fileId) {
-      setActiveFileId(updated.files[0]?.id ?? null);
+      setActiveFileId(defaultActiveFileId(updated));
     }
 
     setDrafts((current) => {
@@ -152,18 +217,34 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
       delete next[fileId];
       return next;
     });
-    setPreviewHtml(buildPreviewDocument(updated));
+    refreshPreview(updated, draftsRef.current);
   }
 
   async function togglePublish() {
+    const saved = await saveAllFiles();
+    if (!saved) {
+      alert('Save your changes before publishing.');
+      return;
+    }
+
     const res = await fetch(`/api/projects/${project.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ published: !project.published }),
     });
+
     if (res.ok) {
-      setProject(await res.json());
+      const updated: Project = await res.json();
+      projectRef.current = updated;
+      setProject(updated);
     }
+  }
+
+  async function copyLiveLink() {
+    const url = `${window.location.origin}/p/${project.id}`;
+    await navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
   }
 
   useEffect(() => {
@@ -177,13 +258,25 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
     function handleKeyDown(event: KeyboardEvent) {
       if ((event.metaKey || event.ctrlKey) && event.key === 's') {
         event.preventDefault();
-        saveCurrentFile();
+        void saveAllFiles();
       }
     }
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  });
+  }, [saveAllFiles]);
+
+  useEffect(() => {
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      if (saveStatusRef.current === 'unsaved') {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   useEffect(() => {
     function onMouseMove(e: MouseEvent) {
@@ -233,23 +326,29 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
             <i className={`bi ${showPreview ? 'bi-layout-split' : 'bi-layout-sidebar'}`} aria-hidden="true" />
             {showPreview ? 'Hide preview' : 'Show preview'}
           </Button>
-          <Button variant="secondary" onClick={saveCurrentFile} disabled={!activeFile || saveStatus === 'saving'}>
+          <Button variant="secondary" onClick={saveCurrentFile} disabled={saveStatus === 'saving'}>
             <i className="bi bi-floppy" aria-hidden="true" />
             {saveStatus === 'saving' ? 'Saving…' : 'Save'}
           </Button>
-          <Button variant="secondary" onClick={togglePublish}>
+          <Button variant="secondary" onClick={togglePublish} disabled={saveStatus === 'saving'}>
             <i className={`bi ${project.published ? 'bi-globe' : 'bi-globe2'}`} aria-hidden="true" />
             {project.published ? 'Published' : 'Publish'}
           </Button>
           {project.published ? (
-            <Link
-              href={`/p/${project.id}`}
-              target="_blank"
-              className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent/90"
-            >
-              <i className="bi bi-box-arrow-up-right" aria-hidden="true" />
-              View live
-            </Link>
+            <>
+              <Button variant="secondary" onClick={copyLiveLink}>
+                <i className="bi bi-clipboard" aria-hidden="true" />
+                {copiedLink ? 'Copied!' : 'Copy link'}
+              </Button>
+              <Link
+                href={`/p/${project.id}`}
+                target="_blank"
+                className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent/90"
+              >
+                <i className="bi bi-box-arrow-up-right" aria-hidden="true" />
+                View live
+              </Link>
+            </>
           ) : null}
         </div>
       </header>
@@ -264,7 +363,6 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
         />
 
         <div ref={splitContainerRef} className="flex min-h-0">
-          {/* editor panel */}
           <div
             className="min-h-0 min-w-0 overflow-hidden"
             style={{ width: showPreview ? `${splitPercent}%` : '100%' }}
@@ -284,7 +382,6 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
 
           {showPreview ? (
             <>
-              {/* drag handle */}
               <div
                 className="group relative z-10 flex w-1 flex-shrink-0 cursor-col-resize items-center justify-center bg-border hover:bg-accent/40 active:bg-accent/60 transition-colors"
                 onMouseDown={(e) => {
@@ -302,7 +399,6 @@ export function EditorWorkspace({ initialProject }: EditorWorkspaceProps) {
                 </div>
               </div>
 
-              {/* preview panel */}
               <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
                 <PreviewPane html={previewHtml} />
               </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import type { ProjectFile } from '@/lib/types';
+import { isProtectedFile } from '@/lib/preview';
 
 interface FileTreeProps {
   files: ProjectFile[];
@@ -72,7 +73,7 @@ export function FileTree({ files, activeFileId, onSelect, onCreate, onDelete }: 
             <button
               type="button"
               onClick={() => onDelete(file.id)}
-              className="mr-1 cursor-pointer rounded p-0.5 text-muted opacity-0 transition-opacity group-hover/row:opacity-100 hover:bg-red-100 hover:text-red-600"
+              className={`mr-1 cursor-pointer rounded p-0.5 text-muted transition-opacity group-hover/row:opacity-100 hover:bg-red-100 hover:text-red-600 ${isProtectedFile(file.name) ? 'hidden' : 'opacity-0'}`}
               title="Delete file"
             >
               <i className="bi bi-x text-sm leading-none" aria-hidden="true" />

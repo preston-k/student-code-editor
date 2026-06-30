@@ -44,7 +44,13 @@ export async function DELETE(_request: Request, context: RouteContext) {
     }
 
     return NextResponse.json(project);
-  } catch {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  } catch (error) {
+    if (error instanceof Error && error.message === 'Unauthorized') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Failed to delete file' }, { status: 500 });
   }
 }
