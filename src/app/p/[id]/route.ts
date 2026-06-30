@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getProjectById } from '@/lib/storage';
-import { buildPublishedDocument } from '@/lib/preview';
+import { buildPublishedDocument, publishedNoCrawlHeaders } from '@/lib/preview';
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
@@ -12,6 +12,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
 
   return new NextResponse(buildPublishedDocument(project), {
     status: 200,
-    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      ...publishedNoCrawlHeaders,
+    },
   });
 }

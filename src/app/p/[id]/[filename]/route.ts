@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getProjectById } from '@/lib/storage';
-import { buildPublishedDocument } from '@/lib/preview';
+import { buildPublishedDocument, publishedNoCrawlHeaders } from '@/lib/preview';
 
 function contentType(type: string): string {
   switch (type) {
@@ -34,6 +34,9 @@ export async function GET(
 
   return new NextResponse(body, {
     status: 200,
-    headers: { 'Content-Type': contentType(file.type) },
+    headers: {
+      'Content-Type': contentType(file.type),
+      ...publishedNoCrawlHeaders,
+    },
   });
 }

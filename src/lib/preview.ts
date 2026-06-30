@@ -74,12 +74,18 @@ export function buildPublishedDocument(project: Project, htmlContent?: string): 
     ? inlineAssets(htmlContent, project.files)
     : buildPreviewDocument(project);
 
+  const robotsMeta = '<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">';
   const navScript = `<script>(function(){var b='/p/${project.id}/';document.addEventListener('click',function(e){var a=e.target.closest('a[href]');if(!a)return;var h=a.getAttribute('href');if(!h||h[0]==='#'||h.startsWith('http')||h.startsWith('//')|| h.startsWith('mailto:')||h.startsWith('tel:'))return;e.preventDefault();location.href=h[0]==='/'?b+h.slice(1):b+h;});})();</script>`;
+  const headInjection = robotsMeta + navScript;
 
   return html.includes('</head>')
-    ? html.replace('</head>', navScript + '</head>')
-    : html + navScript;
+    ? html.replace('</head>', headInjection + '</head>')
+    : html + headInjection;
 }
+
+export const publishedNoCrawlHeaders = {
+  'X-Robots-Tag': 'noindex, nofollow, noarchive, nosnippet',
+} as const;
 
 export function getFileIcon(type: ProjectFile['type']): string {
   switch (type) {
