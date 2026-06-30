@@ -14,7 +14,12 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
     return new NextResponse('No HTML file in this project', { status: 404, headers: { 'Content-Type': 'text/plain' } });
   }
 
-  return new NextResponse(htmlFile.content, {
+  const html = htmlFile.content.replace(
+    /(<head[^>]*>)/i,
+    `$1<base href="/p/${id}/">`,
+  );
+
+  return new NextResponse(html, {
     status: 200,
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   });
