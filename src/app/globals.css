@@ -6,6 +6,7 @@
   --muted: #6b7280;
   --border: #e5e7eb;
   --surface: #f9fafb;
+  --canvas: #f5f4f1;
   --accent: #f97316;
   --accent-light: #fff7ed;
 }
@@ -16,6 +17,7 @@
   --color-muted: var(--muted);
   --color-border: var(--border);
   --color-surface: var(--surface);
+  --color-canvas: var(--canvas);
   --color-accent: var(--accent);
   --color-accent-light: var(--accent-light);
   --font-sans: 'Inter', system-ui, sans-serif;
