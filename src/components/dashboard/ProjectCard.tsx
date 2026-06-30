@@ -8,6 +8,18 @@ interface ProjectCardProps {
   onDelete: (id: string) => void;
 }
 
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Saved just now';
+  if (mins < 60) return `Saved ${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `Saved ${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return `Saved ${days}d ago`;
+  return `Saved ${new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+}
+
 export function ProjectCard({ project, onDelete }: ProjectCardProps) {
   return (
     <div className="group rounded-xl border border-border bg-white p-5 transition-colors hover:border-accent/30">
@@ -19,6 +31,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
           ) : (
             <p className="mt-1 text-sm text-muted">{project.files.length} files</p>
           )}
+          <p className="mt-1 text-xs text-muted/70">{timeAgo(project.updatedAt)}</p>
         </div>
         {project.published ? (
           <span className="shrink-0 rounded-full bg-accent/10 px-2.5 py-1 text-xs font-medium text-accent">
@@ -37,7 +50,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
         </Link>
         {project.published ? (
           <Link
-            href={`/p/${project.slug}`}
+            href={`/serve/${project.id}`}
             target="_blank"
             className="inline-flex items-center justify-center rounded-lg border border-border px-3 py-2 text-sm text-muted transition-colors hover:bg-surface hover:text-foreground"
           >
